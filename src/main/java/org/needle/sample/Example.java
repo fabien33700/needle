@@ -1,5 +1,6 @@
 package org.needle.sample;
 
+import org.needle.di.InjectionException;
 import org.needle.di.ServiceBuilder;
 
 public class Example {
@@ -11,9 +12,11 @@ public class Example {
 				.build();
 			
 			service.init();
-		} catch (ReflectiveOperationException e) {
+		} catch (InjectionException e) {
 			e.printStackTrace();
 		}
+		
+		
 	}
 
 }
