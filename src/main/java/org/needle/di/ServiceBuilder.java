@@ -11,57 +11,77 @@ import java.util.Set;
 
 
 /**
- * Classe permettant de réaliser l'injection de dépendances et d'instancier un objet de la classe
- * passée en paramètre.
- * On considère ici que seuls les champs sont injectables (<code>@Inject</code> autorisé sur <code>ElementType.FIELD</code>)
- * et que l'on ne gère pas les constructeurs avec paramètres.
- * @author Fabien
- *
+ * Builder class for building classes instances, resolve and inject recursively 
+ *   all dependencies instances.<br/>
+ * ServiceBuilder<T> class can be use for every <code>Class&lt;T&gt;</code>, provided that it has <code>@Service</code> annotation on
+ *   its definition. ServiceBuilder<T> scan for all fields marked by the <code>@Inject</code> annotation,
+ *   and tries to build nested dependencies instances.
+ *   
+ * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
+ * 
+ * @param T the type of instance to build
  */
 public class ServiceBuilder<T> implements Builder<T, InjectionException>{	
 	
+	/**
+	 * The class of the instance we are attempting to build
+	 */
 	private Class<T> baseClass;
 	
-	private Set<Class<?>> graph;
+	/**
+	 * The set of dependencies we have already built
+	 */
+	private Set<Class<?>> dependencies;
 	
 	/**
-	 * Créé un builder pour la classe <code>baseClass</code>
-	 * @param baseClass La classe de l'objet à instancier
+	 * Create a builder for the class <code>baseClass</code>
+	 * @param baseClass Class of the instance to build
 	 */
 	private ServiceBuilder(Class<T> baseClass) {
 		this.baseClass = baseClass;
-		this.graph = new HashSet<>();
+		this.dependencies = new HashSet<>();
 	}
 	
+	/**
+	 * Create a builder for the class <code>baseClass</code>,
+	 * with the parent configuration and dependencies set.
+	 * @param baseClass Class of the instance to build
+	 * @param parent The parent ServiceBuilder, that has called this constructor
+	 *   for resolving a dependency
+	 */
 	private ServiceBuilder(Class<T> baseClass, ServiceBuilder<?> parent) {
 		this.baseClass = baseClass;
-		this.graph = parent.graph;
+		this.dependencies = parent.dependencies;
 	}
 
 	/**
-	 * Créer une instance d'un builder pour la classe <code>baseClass</code>
-	 * @param baseClass La classe de l'objet à instancier
+	 * Returns an instance of a builder for the class <code>baseClass</code>
+	 * @param baseClass Class of the instance to build
 	 * @return
 	 */
 	public static <T> ServiceBuilder<T> instance(Class<T> baseClass) {
 		return new ServiceBuilder<T>(baseClass);
 	}
 	
+	/**
+	 * Returns an instance of a builder for the class <code>baseClass</code>
+	 * @param baseClass Class of the instance to build
+	 * @param parent The parent ServiceBuilder
+	 * @return
+	 */
 	private static <T> ServiceBuilder<T> instance(
 			Class<T> baseClass, ServiceBuilder<?> parent) {
 		return new ServiceBuilder<T>(baseClass, parent);
 	}
 
 	/**
-	 * Examine la classe <code>baseClass</code>, construit le graphe de dépendances
-	 *   et retourne une instance du type de <code>baseClass</code> avec les dépendances
-	 *   résolues dans la mesure du possible.
-	 * @param <T> Le type représenté par la classe <code>baseClass</code> correspondant au type de l'objet retourné
-	 * @throws InjectionException Une erreur lors du processus de construction de l'objet ou d'injection de dépendances a eu lieu
+	 * Active method of the builder that examine the class <code>baseClass</code>, scan all 
+	 *   its fields and create the instance, with its dependencies resolved if possible.
+	 * @param <T> Type of the class <code>baseClass</code> corresponding to the instance to create
+	 * @throws InjectionException An error has occured during the instanciation or dependency injection process
 	 */
 	public T build() throws InjectionException {
 		T target;
-		// On tente d'instancier la classe
 		try {
 			target = (T) baseClass.newInstance();
 		} catch (ReflectiveOperationException e) {
@@ -69,14 +89,13 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 					String.format(INSTANCIATION_FAILED, baseClass.getName()), e);
 		}
 		
-		// Pour chaque champ de la classe de base
 		for (final Field field : baseClass.getDeclaredFields()) {	
 			if (isInjectable(field)) {
 				try {
 					field.setAccessible(true);
 					
 					// La classe du champ courant a déjà été examiné -> cycle détecté
-					if (!graph.add(field.getType())) {
+					if (!dependencies.add(field.getType())) {
 						throw new InjectionException(
 								String.format(CYCLIC_DEPENDENCIES, field.getType().getName()));
 					}
@@ -108,9 +127,9 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 	}	
 
 	/**
-	 * Indique si le champ est injectable (<code>@Inject</code> sur le champ
-	 *   et <code>@Service</code> sur la classe représentant le type du champ).
-	 * @param field Le champ à analyser
+	 * Indicate if the given field is injectable (<code>@Inject</code> annotation on the field
+	 *   and <code>@Service</code> one on the field type representing class).
+	 * @param field Field to check
 	 * @return
 	 */
 	private static <T> boolean isInjectable(Field field) {
@@ -119,10 +138,9 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 	}
 	
 	/**
-	 * Retourne la classe de base du builder
+	 * Returns builder base class.
 	 * @return
 	 */
-	@Override
 	public Class<T> getBaseClass() {
 		return baseClass;
 	}	
