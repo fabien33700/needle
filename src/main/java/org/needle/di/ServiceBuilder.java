@@ -4,6 +4,7 @@ import static org.needle.di.InjectionException.CYCLIC_DEPENDENCIES;
 import static org.needle.di.InjectionException.INJECTION_FAILED;
 import static org.needle.di.InjectionException.INSTANCIATION_FAILED;
 import static org.needle.di.InjectionException.NESTED_EXCEPTION;
+import static org.needle.di.InjectionException.NOT_A_SERVICE;
 
 import java.lang.reflect.Field;
 import java.util.HashSet;
@@ -90,11 +91,16 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 		}
 		
 		for (final Field field : baseClass.getDeclaredFields()) {	
-			if (isInjectable(field)) {
+			if (field.isAnnotationPresent(Inject.class)) {
 				try {
 					field.setAccessible(true);
 					
-					// La classe du champ courant a déjà été examiné -> cycle détecté
+					if (!field.getType().isAnnotationPresent(Service.class)) {
+						throw new InjectionException(
+								String.format(NOT_A_SERVICE, field.getType().getName()));
+					}
+					
+					// Class already proceeded -> cycle detected
 					if (!dependencies.add(field.getType())) {
 						throw new InjectionException(
 								String.format(CYCLIC_DEPENDENCIES, field.getType().getName()));
@@ -109,13 +115,11 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 					throw new InjectionException(
 							String.format(INJECTION_FAILED, field.getName()), e);
 				} catch (InjectionException e) {
-					// On encapsule l'éventuelle exception de l'appel récursif 
-					// dans une nouvelle exception et on la relance (chaîne d'exceptions)
+					// Chaining exception in the upper call of the stack
 					throw new InjectionException(
 							String.format(NESTED_EXCEPTION, field.getName(), e), e);
 				}
 				finally {
-					// On rétablit l'état nominal de la représentation du champ dans tous les cas
 					field.setAccessible(false);
 				}
 			}
@@ -125,17 +129,6 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 
 		return target;
 	}	
-
-	/**
-	 * Indicate if the given field is injectable (<code>@Inject</code> annotation on the field
-	 *   and <code>@Service</code> one on the field type representing class).
-	 * @param field Field to check
-	 * @return
-	 */
-	private static <T> boolean isInjectable(Field field) {
-		return field.getType().isAnnotationPresent(Service.class) &&
-				field.isAnnotationPresent(Inject.class);		
-	}
 	
 	/**
 	 * Returns builder base class.
