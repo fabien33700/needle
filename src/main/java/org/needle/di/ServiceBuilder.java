@@ -1,10 +1,14 @@
 package org.needle.di;
 
+import static org.needle.di.InjectionException.CYCLIC_DEPENDENCIES;
 import static org.needle.di.InjectionException.INJECTION_FAILED;
 import static org.needle.di.InjectionException.INSTANCIATION_FAILED;
 import static org.needle.di.InjectionException.NESTED_EXCEPTION;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
+import java.util.Set;
+
 
 /**
  * Classe permettant de réaliser l'injection de dépendances et d'instancier un objet de la classe
@@ -18,12 +22,20 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 	
 	private Class<T> baseClass;
 	
+	private Set<Class<?>> graph;
+	
 	/**
 	 * Créé un builder pour la classe <code>baseClass</code>
 	 * @param baseClass La classe de l'objet à instancier
 	 */
 	private ServiceBuilder(Class<T> baseClass) {
 		this.baseClass = baseClass;
+		this.graph = new HashSet<>();
+	}
+	
+	private ServiceBuilder(Class<T> baseClass, ServiceBuilder<?> parent) {
+		this.baseClass = baseClass;
+		this.graph = parent.graph;
 	}
 
 	/**
@@ -35,6 +47,11 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 		return new ServiceBuilder<T>(baseClass);
 	}
 	
+	private static <T> ServiceBuilder<T> instance(
+			Class<T> baseClass, ServiceBuilder<?> parent) {
+		return new ServiceBuilder<T>(baseClass, parent);
+	}
+
 	/**
 	 * Examine la classe <code>baseClass</code>, construit le graphe de dépendances
 	 *   et retourne une instance du type de <code>baseClass</code> avec les dépendances
@@ -58,7 +75,13 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 				try {
 					field.setAccessible(true);
 					
-					ServiceBuilder<?> nested = ServiceBuilder.instance(field.getType());
+					// La classe du champ courant a déjà été examiné -> cycle détecté
+					if (!graph.add(field.getType())) {
+						throw new InjectionException(
+								String.format(CYCLIC_DEPENDENCIES, field.getType().getName()));
+					}
+					
+					ServiceBuilder<?> nested = ServiceBuilder.instance(field.getType(), this);
 					Object value = nested.build();
 				
 					field.set(target, value);
