@@ -6,12 +6,18 @@ import org.needle.di.Service;
 @Service
 public class UserService implements Initializable {
 	
-	@Inject private DataService dataService;
+	private DataService dataService;
 
 	@Override
 	public void init() {
 		System.out.println("Hello from UserService");
 		dataService.init();
+	}
+	
+	@Inject
+	public UserService(DataService dataService) {
+		this.dataService = dataService;
+		
 	}
 
 }
