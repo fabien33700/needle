@@ -1,7 +1,7 @@
 package org.needle.sample;
 
-import org.needle.di.Inject;
-import org.needle.di.Service;
+import org.needle.di.annotations.Inject;
+import org.needle.di.annotations.Service;
 
 @Service
 public class UserService implements Initializable {
@@ -15,9 +15,8 @@ public class UserService implements Initializable {
 	}
 	
 	@Inject
-	public UserService(DataService dataService) {
+	public UserService(DataService dataService, Object hello) {
 		this.dataService = dataService;
-		
 	}
 
 }

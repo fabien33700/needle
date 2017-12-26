@@ -4,5 +4,5 @@
   <artifactId>needle-di</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>Needle DI</name>
-  <description>A lightweight Dependecy Injection annotation-based framework for Java 8.</description>
+  <description>A lightweight Dependency Injection annotation-based framework for Java 8.</description>
 </project>

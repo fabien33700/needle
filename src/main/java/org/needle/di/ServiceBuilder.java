@@ -1,11 +1,5 @@
 package org.needle.di;
 
-import static org.needle.di.InjectionException.CYCLIC_DEPENDENCIES;
-import static org.needle.di.InjectionException.INJECTION_FAILED;
-import static org.needle.di.InjectionException.INSTANCIATION_FAILED;
-import static org.needle.di.InjectionException.NESTED_EXCEPTION;
-import static org.needle.di.InjectionException.NOT_A_SERVICE;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -15,14 +9,25 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.needle.di.annotations.Inject;
+import org.needle.di.annotations.Service;
+import org.needle.di.exceptions.CyclicDependencyException;
+import org.needle.di.exceptions.InjectionException;
+import org.needle.di.exceptions.InjectionFailedException;
+import org.needle.di.exceptions.InstanciationFailedException;
+import org.needle.di.exceptions.NestedInjectionException;
+import org.needle.di.exceptions.NotServiceException;
+import org.needle.di.exceptions.NotSetterException;
+
 
 /**
- * Builder class for building classes instances, resolve and inject recursively 
- *   all dependencies instances.<br/>
- * ServiceBuilder<T> class can be use for every <code>Class&lt;T&gt;</code>, provided that 
- *   it has <code>@Service</code> annotation on its definition. ServiceBuilder<T> scans,
+ * <p>Builder class for building classes instances, resolving and injecting recursively 
+ *   all dependencies instances.</p>
+ * <p><code>ServiceBuilder&lt;T&gt;</code> class can be use for every <code>Class&lt;T&gt;</code>, provided that 
+ *   it has <code>@Service</code> annotation on its definition.</p>
+ * <p><code>ServiceBuilder&lt;T&gt;</code> scans,
  *   in this order, all constructors, setters and fields marked by the <code>@Inject</code> 
- *   annotation, and tries to build nested dependencies instances.
+ *   annotation, and tries to build nested dependencies instances.</p>
  *   
  * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
  * 
@@ -42,6 +47,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 	
 	/**
 	 * Returns an instance of a builder for the class <code>baseClass</code>
+	 * @param <T> type of the instance to build
 	 * @param baseClass Class of the instance to build
 	 * @return
 	 */
@@ -51,6 +57,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 
 	/**
 	 * Returns an instance of a builder for the class <code>baseClass</code>
+	 * @param <T> type of the instance to build
 	 * @param baseClass Class of the instance to build
 	 * @param parent The parent ServiceBuilder
 	 * @return
@@ -114,14 +121,12 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 	private Object inject(Class<?> type) throws InjectionException {
 		
 		if (!type.isAnnotationPresent(Service.class)) {
-			throw new InjectionException(
-					String.format(NOT_A_SERVICE, type.getName()));
+			throw new NotServiceException(type);
 		}
 		
-		// Class already proceeded -> cycle detected
+		// Class already proceeded, cycle detected
 		if (!dependencies.add(type)) {
-			throw new InjectionException(
-					String.format(CYCLIC_DEPENDENCIES, type.getName()));
+			throw new CyclicDependencyException(type, dependencies);
 		}
 		
 		return ServiceBuilder.instance(type, this).build();
@@ -142,14 +147,15 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 			if (constructor != null) {
 				List<Object> values = new ArrayList<>();
 				
-				for (Parameter param : constructor.getParameters()) {
+				for (int i = 0, n = constructor.getParameterCount(); i < n; i++) {
+					Parameter param = constructor.getParameters()[i];
+				
 					try {
 						Object value = this.inject(param.getType());
 						values.add(value);
 					} catch (InjectionException e) {
 						// Chaining exception in the upper call of the stack
-						throw new InjectionException(
-								String.format(NESTED_EXCEPTION, param.getName(), e), e);
+						throw new NestedInjectionException(i, constructor, e);
 					}
 				}
 				
@@ -160,8 +166,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 				target = (T) baseClass.newInstance();
 			}
 		} catch (ReflectiveOperationException e) {
-			throw new InjectionException(
-					String.format(INSTANCIATION_FAILED, baseClass.getName()), e);
+			throw new InstanciationFailedException(baseClass, e);
 		}
 		return target;
 	}
@@ -179,8 +184,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 					method.setAccessible(true);
 					
 					if (!isSetter(method)) {
-						throw new InjectionException(
-							String.format("@Inject annotated method %s is not a setter.", method.getName()));
+						throw new NotSetterException(method);
 					}
 					
 					Class<?> paramType = method.getParameterTypes()[0];
@@ -189,11 +193,9 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 					method.invoke(target, new Object[] { value });
 				} catch (InjectionException e) {
 					// Chaining exception in the upper call of the stack
-					throw new InjectionException(
-							String.format(NESTED_EXCEPTION, method.getName(), e), e);
+					throw new NestedInjectionException(method, e);
 				} catch (ReflectiveOperationException e) {
-					throw new InjectionException(
-							String.format(INJECTION_FAILED, method.getName()), e);
+					throw new InjectionFailedException(method, e);
 				} finally {
 					method.setAccessible(false);
 				}
@@ -215,11 +217,9 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>{
 					field.set(target, this.inject(field.getType()));
 				} catch (InjectionException e) {
 					// Chaining exception in the upper call of the stack
-					throw new InjectionException(
-							String.format(NESTED_EXCEPTION, field.getName(), e), e);
+					throw new NestedInjectionException(field, e);
 				} catch (ReflectiveOperationException e) {
-					throw new InjectionException(
-							String.format(INJECTION_FAILED, field.getName()), e);
+					throw new InjectionFailedException(field, e);
 				} finally {
 					field.setAccessible(false);
 				}

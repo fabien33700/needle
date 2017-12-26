@@ -1,7 +1,7 @@
 package org.needle.sample;
 
-import org.needle.di.InjectionException;
 import org.needle.di.ServiceBuilder;
+import org.needle.di.exceptions.InjectionException;
 
 public class Example {
 

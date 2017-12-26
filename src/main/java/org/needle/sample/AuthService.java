@@ -1,6 +1,6 @@
 package org.needle.sample;
 
-import org.needle.di.Service;
+import org.needle.di.annotations.Service;
 
 @Service
 public class AuthService implements Initializable {

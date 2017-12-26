@@ -1,7 +1,7 @@
 package org.needle.sample;
 
-import org.needle.di.Inject;
-import org.needle.di.Service;
+import org.needle.di.annotations.Inject;
+import org.needle.di.annotations.Service;
 
 @Service
 public class DataService implements Initializable {
