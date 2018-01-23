@@ -1,19 +1,17 @@
 package org.needle.di.annotations;
-import static java.lang.annotation.ElementType.CONSTRUCTOR;
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import static java.lang.annotation.ElementType.*;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 /**
- * <p>This annotation is used to mark a class field, setter or constructor as injectable
- *   for a ServiceBuilder instance.</p>
- * <p>ServiceBuilder scans its target class representation, all fields, methods and
- *   constructors marked with <code>Inject</code> annotation to resolve its dependencies.</p>
- * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
- *
+ * This annotation is used to mark a class field, setter or constructor as injectable
+ *   for a ServiceBuilder instance.
+ * ServiceBuilder scans its target class representation, all fields, methods and
+ *   constructors marked with Inject annotation to resolve its dependencies.
+ * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  */
 @Retention(RUNTIME)
 @Target({ FIELD, METHOD, CONSTRUCTOR })

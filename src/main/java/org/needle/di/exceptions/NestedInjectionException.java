@@ -1,17 +1,16 @@
-package org.needle.di.errors;
+package org.needle.di.exceptions;
+
+import org.needle.di.ReflectionUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-import org.needle.di.utils.ReflectionUtils;
-
 /**
  * In case of nested ServiceBuilder calls, when an Exception occurs,
  *   it is captured, encapsulated in a NestedInjectionException instance
  *   which is thrown to the top ServiceBuilder call.
- *   
- * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
+ * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  */
 public class NestedInjectionException extends InjectionException {
 	
@@ -43,9 +42,7 @@ public class NestedInjectionException extends InjectionException {
 	 * @param constructor The constructor
 	 * @param nested The source exception
 	 */
-	public NestedInjectionException(
-			int index, 
-			Constructor<?> constructor, 
+	public NestedInjectionException(int index, Constructor<?> constructor,
 			InjectionException nested) {
 		super(String.format(NESTED_EXCEPTION_A, 
 				index, constructor),nested);

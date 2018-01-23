@@ -1,44 +1,96 @@
 package org.needle.di;
 
+import org.needle.di.annotations.Inject;
+import org.needle.di.annotations.Resolve;
+import org.needle.di.annotations.Service;
+import org.needle.di.exceptions.CyclicDependencyException;
+import org.needle.di.exceptions.InjectionException;
+import org.needle.di.exceptions.NestedInjectionException;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-import org.needle.di.annotations.Inject;
-import org.needle.di.annotations.Resolve;
-import org.needle.di.annotations.Service;
-import org.needle.di.errors.CyclicDependencyException;
-import org.needle.di.errors.InjectionException;
-import org.needle.di.errors.InjectionFailedException;
-import org.needle.di.errors.InstanciationFailedException;
-import org.needle.di.errors.NestedInjectionException;
-import org.needle.di.errors.NotServiceException;
-import org.needle.di.errors.NotSetterException;
-import org.needle.di.errors.UnresolvablePropertyException;
-import org.needle.di.utils.ReflectionUtils;
-
+import static org.needle.di.exceptions.InjectionException.*;
 
 /**
- * <p>Builder class for building classes instances, resolving and injecting recursively 
- *   all dependencies instances.</p>
- * <p><code>ServiceBuilder&lt;T&gt;</code> class can be use for every <code>Class&lt;T&gt;</code>, provided that 
- *   it has <code>@Service</code> annotation on its definition.</p>
- * <p><code>ServiceBuilder&lt;T&gt;</code> scans,
- *   in this order, all constructors, setters and fields marked by the <code>@Inject</code> 
- *   annotation, and tries to build nested dependencies instances.</p>
- *   
- * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
- * 
- * @param T the type of instance to build
+ * Builder class for building classes instances, resolving and injecting recursively 
+ *   all dependencies instances.
+ * ServiceBuilder<T> class can be use for every Class<T>, provided that 
+ *   it has @Service annotation on its definition.
+ * ServiceBuilder<T> scans, in this order, all constructors, setters and fields marked by the @Inject
+ *   annotation, and tries to build nested dependencies instances.
+ * @param <T> The type of the class built by the ServiceBuilder
+ * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  */
-public class ServiceBuilder<T> implements Builder<T, InjectionException>, Configurable<String> {		
+@SuppressWarnings("unused")
+public class ServiceBuilder<T> implements Builder<T, InjectionException> {
+
+    /**
+     * Class that allows the developer to fill in the ServiceBuilder
+     * configuration in a chained way.
+     *
+     * To configure a ServiceBuilder, use the method configure()
+     * that returns the corresponding Configurator instance. The put() method
+     * allows to add/change parameters in configuration. The method done() returns
+     * a reference on the associated ServiceBuilder.
+     * @see ServiceBuilder#configure()
+     * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
+     * @param <U> The type of the ServiceBuilder currently in configuration
+     */
+    static class Configurator<U> {
+
+        /**
+         * The builder currently in configuration.
+         */
+        private ServiceBuilder<U> builder;
+
+        /**
+         * Create a Configurator instance for the given builder.
+         * This method is internal and should not be called directly.
+         *
+         * @param builder The builder instance to configure
+         * @see ServiceBuilder#configure()
+         */
+        Configurator(ServiceBuilder<U> builder) {
+            this.builder = builder;
+        }
+
+        /**
+         * Create a Configurator instance for the given builder,
+         * with the configuration parameters contained in the provided map
+         * This method is internal and should not be called directly.
+         *
+         * @param builder The builder instance to configure
+         * @param configuration The map that contains initial configuration.
+         * @see ServiceBuilder#configure()
+         */
+        Configurator(ServiceBuilder<U> builder, Map<String, ?> configuration) {
+            this(builder);
+            builder.getConfiguration().putAll(configuration);
+        }
+
+        /**
+         * Put a property in the configuration.
+         * @param key The property key
+         * @param value The property value
+         * @return The current configurator
+         */
+        public Configurator<U> put(String key, Object value) {
+            builder.getConfiguration().put(key, value);
+            return this;
+        }
+
+        /**
+         * Returns the builder that we are configuring.
+         * @return The associated ServiceBuilder instance
+         */
+        public ServiceBuilder<U> done() {
+            return builder;
+        }
+    }
 	
 	/**
 	 * The class of the instance we are attempting to build
@@ -66,7 +118,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	/**
 	 * Returns a Configurator instance for the current builder,
 	 *   filled with initial configuration provided in a Map.
-	 * @param confguration The map that contains configuration
+	 * @param configuration The map that contains configuration
 	 * @return The configurator for the ServiceBuilder<T>
 	 */
 	public Configurator<T> configure(Map<String, ?> configuration) {
@@ -74,29 +126,29 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	}
 
 	/**
-	 * Returns an instance of a builder for the class <code>baseClass</code>
+	 * Returns an instance of a builder for the class baseClass
 	 * @param <T> type of the instance to build
 	 * @param baseClass Class of the instance to build
 	 * @return The brand new builder of T instance
 	 */
 	public static <T> ServiceBuilder<T> instance(Class<T> baseClass) {
-		return new ServiceBuilder<T>(baseClass);
+		return new ServiceBuilder<>(baseClass);
 	}
 
 	/**
-	 * Returns an instance of a builder for the class <code>baseClass</code>
+	 * Returns an instance of a builder for the class baseClass
 	 * @param <T> type of the instance to build
 	 * @param baseClass Class of the instance to build
 	 * @param parent The parent ServiceBuilder
-	 * @return
+	 * @return The ServiceBuilder instance
 	 */
 	private static <T> ServiceBuilder<T> instance(
 			Class<T> baseClass, ServiceBuilder<?> parent) {
-		return new ServiceBuilder<T>(baseClass, parent);
+		return new ServiceBuilder<>(baseClass, parent);
 	}
 	
 	/**
-	 * Create a builder for the class <code>baseClass</code>
+	 * Create a builder for the class baseClass
 	 * @param baseClass Class of the instance to build
 	 */
 	private ServiceBuilder(Class<T> baseClass) {
@@ -106,7 +158,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	}
 	
 	/**
-	 * Create a builder for the class <code>baseClass</code>,
+	 * Create a builder for the class baseClass,
 	 * with the parent configuration and dependencies set.
 	 * @param baseClass Class of the instance to build
 	 * @param parent The parent ServiceBuilder, that has called this constructor
@@ -128,10 +180,9 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	}
 
 	/**
-	 * <p>Active method of the builder that examine the class <code>baseClass</code>, scan all 
-	 *   its fields, setters and constructors and create the instance, with its dependencies resolved if possible.</p>
-	 * @param <T> Type of the class <code>baseClass</code> corresponding to the instance to create
-	 * @throws InjectionException An error has occured during the instanciation or dependency injection process
+	 * Active method of the builder that examine the class baseClass, scan all
+	 *   its fields, setters and constructors and create the instance, with its dependencies resolved if possible.
+	 * @throws InjectionException An error has occurred during the instantiation or dependency injection process
 	 */
 	public T build() throws InjectionException {
 		T target = this.injectByConstructor();
@@ -142,17 +193,17 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	}
 
 	/**
-	 * <p>Inject an instance of the type <code>type</code> by instanciating
-	 *   a ServiceBuilder on the class that will resolve recursively its dependencies.</p>
+	 * Inject an instance of the type type by instantiating
+	 *   a ServiceBuilder on the class that will resolve recursively its dependencies.
 	 * @param type The Class that represents the type of service to inject
-	 * @return The instance of <code>type</code>
-	 * @throws InjectionException An error has occured during the injection process,
+	 * @return The instance of type
+	 * @throws InjectionException An error has occurred during the injection process,
 	 *   at this or a nested level.
 	 */
 	private Object inject(Class<?> type) throws InjectionException {		
 		
 		if (!type.isAnnotationPresent(Service.class)) {	
-			throw new NotServiceException(type);
+			throw new InjectionException(NOT_A_SERVICE, type.getName());
 		}
 		
 		// Class already proceeded, cycle detected
@@ -166,16 +217,15 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	}
 	
 	/**
-	 * <p>Try to resolve a property marked with <code>@Resolve</code> annotation
+	 * Try to resolve a property marked with @Resolve annotation
 	 *   on a field, with the key contained in it, or with the memberName if 
-	 *   no key was provided in the annotation use.</p>
-	 * @param target The target object
+	 *   no key was provided in the annotation use.
 	 * @param field The field representation 
 	 * @return The value of the property to resolve
 	 * @throws InjectionException If the injector has no configuration property
 	 *   with matching key.
 	 */
-	private Object resolve(T target, Field field) 
+	private Object resolve(Field field)
 		throws InjectionException 	
 	{
 		final Resolve resolve = field.getAnnotation(Resolve.class);
@@ -183,23 +233,22 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 				resolve.value() : field.getName();
 
 		if (!configuration.containsKey(key)) {
-			throw new UnresolvablePropertyException(field.getName(), key);
+			throw new InjectionException(UNRESOLVABLE, field.getName(), key);
 		}
 		
 		return configuration.get(key);
 	}
 	
 	/**
-	 * <p>Try to resolve a property marked with <code>@Resolve</code> annotation
+	 * Try to resolve a property marked with @Resolve annotation
 	 *   on a setter method, with the key contained in it, or with the memberName if 
-	 *   no key was provided in the annotation use.</p>
-	 * @param target The target object
+	 *   no key was provided in the annotation use.
 	 * @param setter The setter method representation 
 	 * @return The value of the property to resolve
 	 * @throws InjectionException If the injector has no configuration property
 	 *   with matching key.
 	 */	
-	private Object resolve(T target, Method setter) 
+	private Object resolve(Method setter)
 			throws InjectionException 	
 		{
 			final String memberName = ReflectionUtils.getMemberNameFromSetter(setter);
@@ -208,20 +257,19 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 					resolve.value() : memberName;
 
 			if (!configuration.containsKey(key)) {
-				throw new UnresolvablePropertyException(memberName, key);
+				throw new InjectionException(UNRESOLVABLE, memberName, key);
 			}
 			
 			return configuration.get(key);
 		}
 
 	/**
-	 * <p>Find the first eligible injectable constructor, resolve dependencies and 
-	 *   call it.</p>
-	 * @param target The instance in which to inject by constructor
-	 * @throws InjectionException
+	 * Find the first eligible injectable constructor, resolve dependencies and
+	 *   call it.
+	 * @throws InjectionException If an error occurred during the injection process
 	 */
 	private T injectByConstructor() throws InjectionException {
-		T target = null;
+		T target;
 		Constructor<T> constructor = findInjectableConstructor();
 
 		try {
@@ -241,13 +289,13 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 				}
 				
 				// Constructs the instance with the matching injectable constructor
-				target = (T) constructor.newInstance(values.toArray());
+				target = constructor.newInstance(values.toArray());
 			} else {
 				// Constructs the instance with the empty constructor
-				target = (T) baseClass.newInstance();
+				target = baseClass.newInstance();
 			}
-		} catch (ReflectiveOperationException e) {
-			throw new InstanciationFailedException(baseClass, e);
+		} catch (ReflectiveOperationException cause) {
+		    throw new InjectionException(cause, INSTANTIATION_FAILED, baseClass.getName());
 		}
 		return target;
 	}
@@ -255,7 +303,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	/**
 	 * Scan all base class methods, gets setters and realize injection on each eligible ones.
 	 * @param target The instance in which to inject by setters
-	 * @throws InjectionException An error has occured during the injection process,
+	 * @throws InjectionException An error has occurred during the injection process,
 	 *   at this or a nested level.
 	 */
 	private void injectBySetters(T target) throws InjectionException {
@@ -265,7 +313,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 					method.setAccessible(true);
 					
 					if (!ReflectionUtils.isSetter(baseClass, method)) {
-						throw new NotSetterException(method);
+						throw new InjectionException(NOT_A_SETTER, ReflectionUtils.describeMethod(method));
 					}
 					
 					Class<?> paramType = method.getParameterTypes()[0];
@@ -275,15 +323,16 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 						value = inject(paramType);
 					} else
 					if (ReflectionUtils.hasAnnotations(method, Resolve.class)) {
-						value = resolve(target, method);
+						value = resolve(method);
 					}
 					
-					method.invoke(target, new Object[] { value });
+					method.invoke(target, value);
 				} catch (InjectionException e) {
 					// Chaining exception in the upper call of the stack
 					throw new NestedInjectionException(method, e);
-				} catch (ReflectiveOperationException e) {
-					throw new InjectionFailedException(method, e);
+				} catch (ReflectiveOperationException cause) {
+				    throw new InjectionException(cause, INJECTION_FAILED,
+                            ReflectionUtils.getMemberNameFromSetter(method));
 				} finally {
 					method.setAccessible(false);
 				}
@@ -294,7 +343,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	/**
 	 * Scan all base class fields and realize injection on each eligible ones.
 	 * @param target The instance in which to inject by fields
-	 * @throws InjectionException An error has occured during the injection process,
+	 * @throws InjectionException An error has occurred during the injection process,
 	 *   at this or a nested level.
 	 */
 	private void injectByFields(T target) throws InjectionException {
@@ -307,13 +356,13 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 						field.set(target, inject(field.getType()));
 					} else 
 					if (ReflectionUtils.hasAnnotations(field, Resolve.class)) {
-						field.set(target, resolve(target, field));
+						field.set(target, resolve(field));
 					}
 				} catch (InjectionException e) {
 					// Chaining exception in the upper call of the stack
 					throw new NestedInjectionException(field, e);
-				} catch (ReflectiveOperationException e) {
-					throw new InjectionFailedException(field, e);
+				} catch (ReflectiveOperationException cause) {
+				    throw new InjectionException(cause, INSTANTIATION_FAILED, field.getName());
 				} finally {
 					field.setAccessible(false);
 				}
@@ -322,9 +371,9 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 	}
 	
 	/**
-	 * <p>Find the first base class constructor with <code>@Inject</code> annotation.</p>
+	 * Find the first base class constructor with @Inject annotation.
 	 * 
-	 * @return An instance of <code>Constructor&lt;T&gt;</code>, or null if none was found.
+	 * @return An instance of Constructor<T>, or null if none was found.
 	 */
 	@SuppressWarnings("unchecked")
 	private Constructor<T> findInjectableConstructor() {
@@ -339,12 +388,10 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException>, Config
 		return null;
 	}
 
-
-
 	/**
-	 * {@inheritDoc}
+	 * Returns the ServiceBuilder configuration
+	 * @return The configuration, contained in a Map.
 	 */
-	@Override
 	public Map<String, Object> getConfiguration() {
 		return configuration;
 	}	

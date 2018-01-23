@@ -1,4 +1,4 @@
-package org.needle.di.errors;
+package org.needle.di.exceptions;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -6,8 +6,7 @@ import java.util.stream.Collectors;
 /**
  * An exception thrown when a cycle has been detected in the
  *   chain of detected dependencies for the target type.
- * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
- *
+ * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  */
 public class CyclicDependencyException extends InjectionException {
 
@@ -17,7 +16,7 @@ public class CyclicDependencyException extends InjectionException {
 	 * Returns a string representing the list of all detected and proceeded 
 	 *   dependencies.
 	 * @param dependencies A collection that contains all dependencies representing class objects
-	 * @return
+	 * @return The list of already injected dependencies classes name
 	 */
 	private static String getDependencyList(Collection<Class<?>> dependencies) {
 		return dependencies.stream()

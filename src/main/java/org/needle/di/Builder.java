@@ -1,13 +1,12 @@
 package org.needle.di;
 
 /**
- * <p>General behaviour for a builder, which is a class that build
- *   a typed <code>T</code> object, and possibly throws <code>X</code> 
- *   exceptions.</p>
- * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
- *
+ * General behaviour for a builder, which is a class that build
+ *   a typed T object, and possibly throws X
+ *   exceptions.
+ * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  * @param <T> The type of the instance to build
- * @param <X> The type of the <b>Exception</b> that can be thrown during 
+ * @param <X> The type of the Exception that can be thrown during
  * 	the building process
  */
 public interface Builder<T, X extends Exception> {

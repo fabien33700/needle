@@ -1,19 +1,17 @@
 package org.needle.di.annotations;
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 /**
- * <p>This annotation is used to mark a class as a service, which means
- *   a class that can be instanciated, and whose instances can be injected by
- *   a <em>ServiceBuilder</em> in other instances field, setter or constructor 
- *   (themsleves <code>@Inject</code> annotated). </p>
- * <p>A service may have dependencies that can be resolved by another <em>ServiceBuilder</em></p>.
- * 
- * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
+ * This annotation is used to mark a field or a setter method, indicating thus
+ *   to the ServiceBuilder to try resolving the member value with a value registered in
+ *   its configuration.
+ * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  */
 @Retention(RUNTIME)
 @Target({ FIELD, METHOD })
