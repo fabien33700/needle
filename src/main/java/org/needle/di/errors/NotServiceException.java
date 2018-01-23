@@ -1,10 +1,10 @@
-package org.needle.di.exceptions;
+package org.needle.di.errors;
 
 /**
  * An exception thrown when the type of an instance to inject is not 
  *   marked with the <code>@Service</code> annotation.
+ *   
  * @author fabien33700 <code>&lt;fabien.lehouedec@gmail.com&gt;</code>
- *
  */
 public class NotServiceException extends InjectionException {
 

@@ -1,6 +1,8 @@
-package org.needle.di.exceptions;
+package org.needle.di.errors;
 
 import java.lang.reflect.Method;
+
+import org.needle.di.utils.ReflectionUtils;
 
 /**
  * An exception thrown when a method <code>@Inject</code> annotated method 
@@ -14,11 +16,11 @@ public class NotSetterException extends InjectionException {
 
 	/**
 	 * Constructs an NotSetterException instance from the problematic method 
-	 *   reflection representation object
+	 *   reflection representation object.
 	 * @param method The problematic method
 	 */
 	public NotSetterException(Method method) {
-		super(String.format(NOT_A_SETTER, method.getName()));
+		super(String.format(NOT_A_SETTER, ReflectionUtils.describeMethod(method)));
 	}
 
 }

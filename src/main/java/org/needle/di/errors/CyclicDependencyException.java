@@ -1,4 +1,4 @@
-package org.needle.di.exceptions;
+package org.needle.di.errors;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -15,7 +15,7 @@ public class CyclicDependencyException extends InjectionException {
 	
 	/**
 	 * Returns a string representing the list of all detected and proceeded 
-	 *   dependencies
+	 *   dependencies.
 	 * @param dependencies A collection that contains all dependencies representing class objects
 	 * @return
 	 */
@@ -26,7 +26,7 @@ public class CyclicDependencyException extends InjectionException {
 	}
 
 	/**
-	 * Constructs a CyclicDependencyException instance
+	 * Constructs a CyclicDependencyException instance.
 	 * @param cycle The type class that closed the cycle 
 	 * @param dependencies The list of already proceeded dependencies classes
 	 */

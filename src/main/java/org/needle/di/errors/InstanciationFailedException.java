@@ -1,4 +1,4 @@
-package org.needle.di.exceptions;
+package org.needle.di.errors;
 
 /**
  * An exception thrown when a the instanciation of the target class
@@ -11,7 +11,7 @@ public class InstanciationFailedException extends InjectionException {
 	private static final long serialVersionUID = -4084001445200361342L;
 
 	/**
-	 * Constructs an InstanciationFailedException
+	 * Constructs an InstanciationFailedException.
 	 * @param clazz The class which is not instanciable
 	 * @param cause The cause of the problem
 	 */
