@@ -251,7 +251,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	private Object resolve(Method setter)
 			throws InjectionException 	
 		{
-			final String memberName = ReflectionUtils.getMemberNameFromSetter(setter);
+			final String memberName = ReflectionUtils.getMemberNameFromSetter(setter.getName());
 			final Resolve resolve = setter.getAnnotation(Resolve.class);
 			final String key = (!resolve.value().isEmpty()) ?
 					resolve.value() : memberName;
@@ -308,7 +308,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	 */
 	private void injectBySetters(T target) throws InjectionException {
 		for (final Method method : baseClass.getDeclaredMethods()) {	
-			if (ReflectionUtils.hasAnnotations(method, Inject.class, Resolve.class)) {
+			if (ReflectionUtils.hasOneAnnotation(method, Inject.class, Resolve.class)) {
 				try {
 					method.setAccessible(true);
 					
@@ -319,10 +319,10 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 					Class<?> paramType = method.getParameterTypes()[0];
 					Object value = null;
 					
-					if (ReflectionUtils.hasAnnotations(method, Inject.class)) {
+					if (ReflectionUtils.hasOneAnnotation(method, Inject.class)) {
 						value = inject(paramType);
 					} else
-					if (ReflectionUtils.hasAnnotations(method, Resolve.class)) {
+					if (ReflectionUtils.hasOneAnnotation(method, Resolve.class)) {
 						value = resolve(method);
 					}
 					
@@ -332,7 +332,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 					throw new NestedInjectionException(method, e);
 				} catch (ReflectiveOperationException cause) {
 				    throw new InjectionException(cause, INJECTION_FAILED,
-                            ReflectionUtils.getMemberNameFromSetter(method));
+                            ReflectionUtils.getMemberNameFromSetter(method.getName()));
 				} finally {
 					method.setAccessible(false);
 				}
@@ -349,13 +349,13 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	private void injectByFields(T target) throws InjectionException {
 		
 		for (final Field field : baseClass.getDeclaredFields()) {	
-			if (ReflectionUtils.hasAnnotations(field, Inject.class, Resolve.class)) {
+			if (ReflectionUtils.hasOneAnnotation(field, Inject.class, Resolve.class)) {
 				try {
 					field.setAccessible(true);
-					if (ReflectionUtils.hasAnnotations(field, Inject.class)) {
+					if (ReflectionUtils.hasOneAnnotation(field, Inject.class)) {
 						field.set(target, inject(field.getType()));
 					} else 
-					if (ReflectionUtils.hasAnnotations(field, Resolve.class)) {
+					if (ReflectionUtils.hasOneAnnotation(field, Resolve.class)) {
 						field.set(target, resolve(field));
 					}
 				} catch (InjectionException e) {

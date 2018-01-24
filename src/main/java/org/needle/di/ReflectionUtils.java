@@ -9,21 +9,19 @@ import java.util.stream.Stream;
 
 /**
  * An utility class for Reflection test or manipulation.
- * 
- * @author fabien33700 &lt;fabien.lehouedec@gmail.com&gt;
+ * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  */
 public class ReflectionUtils {
 	
 	/**
 	 * Returns member name from setter method.
-	 * @param setter The setter method object
+	 * @param methodName The method name to check
 	 * @return The field name, or empty empty String if method is not a setter
 	 */
-	public static String getMemberNameFromSetter(Method setter) {
-		if (setter.getName().startsWith("set")) {
-			final String name = setter.getName();
-			return name.substring(3, 4).toLowerCase() +
-					name.substring(4);
+	public static String getMemberNameFromSetter(String methodName) {
+		if (methodName != null && methodName.startsWith("set")) {
+			return methodName.substring(3, 4).toLowerCase() +
+					methodName.substring(4);
 		}
 		return "";
 	}
@@ -35,7 +33,7 @@ public class ReflectionUtils {
 	 */
 	public static boolean isSetter(Class clazz, Method method) {
 		try {
-			final String fieldName = getMemberNameFromSetter(method);
+			final String fieldName = getMemberNameFromSetter(method.getName());
 			final Field field = clazz.getDeclaredField(fieldName);
 				
 			return method.getReturnType().equals(Void.TYPE) &&
@@ -57,8 +55,8 @@ public class ReflectionUtils {
 	 * @return true if the element is annotated by one of the annotation classes
 	 */
 	@SafeVarargs
-	public static boolean hasAnnotations(AnnotatedElement element, 
-			Class<? extends Annotation>... annotations) {
+	public static boolean hasOneAnnotation(AnnotatedElement element,
+		   Class<? extends Annotation>... annotations) {
 		return Stream.of(annotations)
 				.anyMatch(element::isAnnotationPresent);
 	}
@@ -74,7 +72,8 @@ public class ReflectionUtils {
 				Stream.of(method.getParameterTypes())
 					.map(Class::getSimpleName)
 					.collect(Collectors.joining(", "))
-				+ ")";
+				+ ") : " +
+				method.getReturnType().getSimpleName();
 	}
 
 }
