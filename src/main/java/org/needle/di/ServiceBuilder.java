@@ -1,7 +1,6 @@
 package org.needle.di;
 
 import org.needle.di.annotations.Inject;
-import org.needle.di.annotations.Resolve;
 import org.needle.di.annotations.Service;
 import org.needle.di.exceptions.CyclicDependencyException;
 import org.needle.di.exceptions.InjectionException;
@@ -11,12 +10,17 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
 
+import static org.needle.di.ReflectionUtils.hasOneAnnotation;
 import static org.needle.di.exceptions.InjectionException.*;
 
 /**
- * Builder class for building classes instances, resolving and injecting recursively 
+ * Builder class for building classes instances, resolving and injecting recursively
  *   all dependencies instances.
  * ServiceBuilder<T> class can be use for every Class<T>, provided that 
  *   it has @Service annotation on its definition.
@@ -25,72 +29,7 @@ import static org.needle.di.exceptions.InjectionException.*;
  * @param <T> The type of the class built by the ServiceBuilder
  * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
  */
-@SuppressWarnings("unused")
 public class ServiceBuilder<T> implements Builder<T, InjectionException> {
-
-    /**
-     * Class that allows the developer to fill in the ServiceBuilder
-     * configuration in a chained way.
-     *
-     * To configure a ServiceBuilder, use the method configure()
-     * that returns the corresponding Configurator instance. The put() method
-     * allows to add/change parameters in configuration. The method done() returns
-     * a reference on the associated ServiceBuilder.
-     * @see ServiceBuilder#configure()
-     * @author fabien33700 <fabien DOT lehouedec AT gmail DOT com>
-     * @param <U> The type of the ServiceBuilder currently in configuration
-     */
-    static class Configurator<U> {
-
-        /**
-         * The builder currently in configuration.
-         */
-        private ServiceBuilder<U> builder;
-
-        /**
-         * Create a Configurator instance for the given builder.
-         * This method is internal and should not be called directly.
-         *
-         * @param builder The builder instance to configure
-         * @see ServiceBuilder#configure()
-         */
-        Configurator(ServiceBuilder<U> builder) {
-            this.builder = builder;
-        }
-
-        /**
-         * Create a Configurator instance for the given builder,
-         * with the configuration parameters contained in the provided map
-         * This method is internal and should not be called directly.
-         *
-         * @param builder The builder instance to configure
-         * @param configuration The map that contains initial configuration.
-         * @see ServiceBuilder#configure()
-         */
-        Configurator(ServiceBuilder<U> builder, Map<String, ?> configuration) {
-            this(builder);
-            builder.getConfiguration().putAll(configuration);
-        }
-
-        /**
-         * Put a property in the configuration.
-         * @param key The property key
-         * @param value The property value
-         * @return The current configurator
-         */
-        public Configurator<U> put(String key, Object value) {
-            builder.getConfiguration().put(key, value);
-            return this;
-        }
-
-        /**
-         * Returns the builder that we are configuring.
-         * @return The associated ServiceBuilder instance
-         */
-        public ServiceBuilder<U> done() {
-            return builder;
-        }
-    }
 	
 	/**
 	 * The class of the instance we are attempting to build
@@ -101,29 +40,6 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	 * The set of dependencies we have already built
 	 */
 	private Set<Class<?>> dependencies;
-	
-	/**
-	 * The configuration of the injector 
-	 */
-	private Map<String, Object> configuration;
-	
-	/**
-	 * Returns a Configurator instance for the current builder.
-	 * @return The configurator for the ServiceBuilder<T>
-	 */
-	public Configurator<T> configure() {
-		return new Configurator<>(this);
-	}
-	
-	/**
-	 * Returns a Configurator instance for the current builder,
-	 *   filled with initial configuration provided in a Map.
-	 * @param configuration The map that contains configuration
-	 * @return The configurator for the ServiceBuilder<T>
-	 */
-	public Configurator<T> configure(Map<String, ?> configuration) {
-		return new Configurator<>(this, configuration);
-	}
 
 	/**
 	 * Returns an instance of a builder for the class baseClass
@@ -154,7 +70,6 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	private ServiceBuilder(Class<T> baseClass) {
 		this.baseClass = baseClass;
 		this.dependencies = new HashSet<>();
-		this.configuration = new HashMap<>();
 	}
 	
 	/**
@@ -167,7 +82,6 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	private ServiceBuilder(Class<T> baseClass, ServiceBuilder<?> parent) {
 		this.baseClass = baseClass;
 		this.dependencies = parent.dependencies;
-		this.configuration = parent.getConfiguration();
 	}
 
 	/**
@@ -215,53 +129,6 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 				.instance(type, this)
 				.build();
 	}
-	
-	/**
-	 * Try to resolve a property marked with @Resolve annotation
-	 *   on a field, with the key contained in it, or with the memberName if 
-	 *   no key was provided in the annotation use.
-	 * @param field The field representation 
-	 * @return The value of the property to resolve
-	 * @throws InjectionException If the injector has no configuration property
-	 *   with matching key.
-	 */
-	private Object resolve(Field field)
-		throws InjectionException 	
-	{
-		final Resolve resolve = field.getAnnotation(Resolve.class);
-		final String key = (!resolve.value().isEmpty()) ?
-				resolve.value() : field.getName();
-
-		if (!configuration.containsKey(key)) {
-			throw new InjectionException(UNRESOLVABLE, field.getName(), key);
-		}
-		
-		return configuration.get(key);
-	}
-	
-	/**
-	 * Try to resolve a property marked with @Resolve annotation
-	 *   on a setter method, with the key contained in it, or with the memberName if 
-	 *   no key was provided in the annotation use.
-	 * @param setter The setter method representation 
-	 * @return The value of the property to resolve
-	 * @throws InjectionException If the injector has no configuration property
-	 *   with matching key.
-	 */	
-	private Object resolve(Method setter)
-			throws InjectionException 	
-		{
-			final String memberName = ReflectionUtils.getMemberNameFromSetter(setter.getName());
-			final Resolve resolve = setter.getAnnotation(Resolve.class);
-			final String key = (!resolve.value().isEmpty()) ?
-					resolve.value() : memberName;
-
-			if (!configuration.containsKey(key)) {
-				throw new InjectionException(UNRESOLVABLE, memberName, key);
-			}
-			
-			return configuration.get(key);
-		}
 
 	/**
 	 * Find the first eligible injectable constructor, resolve dependencies and
@@ -270,7 +137,8 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	 */
 	private T injectByConstructor() throws InjectionException {
 		T target;
-		Constructor<T> constructor = findInjectableConstructor();
+
+		Constructor<T> constructor = findInjectableConstructor(baseClass);
 
 		try {
 			if (constructor != null) {
@@ -308,7 +176,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	 */
 	private void injectBySetters(T target) throws InjectionException {
 		for (final Method method : baseClass.getDeclaredMethods()) {	
-			if (ReflectionUtils.hasOneAnnotation(method, Inject.class, Resolve.class)) {
+			if (hasOneAnnotation(method, Inject.class)) {
 				try {
 					method.setAccessible(true);
 					
@@ -317,15 +185,7 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 					}
 					
 					Class<?> paramType = method.getParameterTypes()[0];
-					Object value = null;
-					
-					if (ReflectionUtils.hasOneAnnotation(method, Inject.class)) {
-						value = inject(paramType);
-					} else
-					if (ReflectionUtils.hasOneAnnotation(method, Resolve.class)) {
-						value = resolve(method);
-					}
-					
+					Object value = inject(paramType);
 					method.invoke(target, value);
 				} catch (InjectionException e) {
 					// Chaining exception in the upper call of the stack
@@ -349,15 +209,10 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 	private void injectByFields(T target) throws InjectionException {
 		
 		for (final Field field : baseClass.getDeclaredFields()) {	
-			if (ReflectionUtils.hasOneAnnotation(field, Inject.class, Resolve.class)) {
+			if (hasOneAnnotation(field, Inject.class)) {
 				try {
 					field.setAccessible(true);
-					if (ReflectionUtils.hasOneAnnotation(field, Inject.class)) {
-						field.set(target, inject(field.getType()));
-					} else 
-					if (ReflectionUtils.hasOneAnnotation(field, Resolve.class)) {
-						field.set(target, resolve(field));
-					}
+					field.set(target, inject(field.getType()));
 				} catch (InjectionException e) {
 					// Chaining exception in the upper call of the stack
 					throw new NestedInjectionException(field, e);
@@ -369,31 +224,16 @@ public class ServiceBuilder<T> implements Builder<T, InjectionException> {
 			}
 		}
 	}
-	
-	/**
-	 * Find the first base class constructor with @Inject annotation.
-	 * 
-	 * @return An instance of Constructor<T>, or null if none was found.
-	 */
-	@SuppressWarnings("unchecked")
-	private Constructor<T> findInjectableConstructor() {
-		
-		for (Constructor<?> constructor : baseClass.getConstructors()) {
-			if (constructor.getDeclaringClass().equals(baseClass) &&
-					constructor.isAnnotationPresent(Inject.class)) {
-				return (Constructor<T>) constructor;
-				
-			}
-		}
-		return null;
-	}
 
 	/**
-	 * Returns the ServiceBuilder configuration
-	 * @return The configuration, contained in a Map.
+	 * Find the first constructor of the class argument with @Inject annotation.
+	 * @return An instance of Constructor<T>, or null if none was found.
 	 */
-	public Map<String, Object> getConfiguration() {
-		return configuration;
-	}	
-	
+    @SuppressWarnings("unchecked")
+	private static <T> Constructor<T> findInjectableConstructor(Class<T> clazz) {
+        return (Constructor<T>) Stream.of(clazz.getConstructors())
+                .filter(cstr -> cstr.getDeclaringClass().equals(clazz))
+                .filter(cstr -> cstr.isAnnotationPresent(Inject.class))
+                .findFirst().orElse(null);
+    }
 }

@@ -45,8 +45,7 @@ public class ReflectionUtils {
 			return false;
 		}
 	}
-	
-	
+
 	/**
 	 * Indicates whether the element is annotated by at least
 	 *   one of the annotations type provided in arguments

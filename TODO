@@ -1,0 +1,3 @@
+- TODO Permettre au ServiceBuilder de trouver des implémentations
+- TODO Revoir le système de configuration via des fichiers
+- TODO Réaliser de l'abstraction sur les méthodes injectBy pour réduire la redondance
